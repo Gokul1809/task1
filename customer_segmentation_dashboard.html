@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Segmentation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #f7f4ef;
+  --ink: #1a1612;
+  --muted: #8a8278;
+  --border: #e0dbd2;
+  --s0: #2d4a3e; --s0l: #e8f0ec; --s0m: rgba(45,74,62,0.12);
+  --s1: #8b3a52; --s1l: #f5eaed; --s1m: rgba(139,58,82,0.12);
+  --s2: #1e3a5f; --s2l: #e8edf4; --s2m: rgba(30,58,95,0.12);
+  --s3: #7a4f1e; --s3l: #f5efe6; --s3m: rgba(122,79,30,0.12);
+  --card: #ffffff;
+  --shadow: 0 2px 16px rgba(26,22,18,0.08);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+/* Decorative top stripe */
+body::before { content:''; display:block; height:4px; background: linear-gradient(90deg,var(--s0),var(--s1),var(--s2),var(--s3)); }
+
+.wrap { max-width: 1380px; margin: 0 auto; padding: 32px 24px; }
+
+/* Header */
+.hdr { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:32px; gap:16px; flex-wrap:wrap; }
+.hdr-left {}
+.eyebrow { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.hdr-title { font-family:'Playfair Display',serif; font-size:34px; font-weight:900; letter-spacing:-0.5px; line-height:1.1; }
+.hdr-sub { font-size:13px; color:var(--muted); margin-top:6px; max-width:440px; line-height:1.5; }
+.hdr-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+.btn { font-family:'IBM Plex Sans',sans-serif; font-size:12px; font-weight:600; padding:8px 18px; border-radius:6px; border:1.5px solid var(--border); background:var(--card); color:var(--ink); cursor:pointer; transition:all 0.18s; }
+.btn:hover { border-color:var(--ink); }
+.btn.primary { background:var(--ink); color:#fff; border-color:var(--ink); }
+.btn.primary:hover { opacity:0.85; }
+
+input[type=file] { display:none; }
+
+/* Segment tabs */
+.seg-tabs { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+.seg-tab {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 18px; border-radius:10px;
+  border:1.5px solid var(--border); background:var(--card);
+  cursor:pointer; transition:all 0.2s;
+  animation: riseUp 0.4s ease both;
+}
+.seg-tab:nth-child(1){animation-delay:.05s} .seg-tab:nth-child(2){animation-delay:.1s}
+.seg-tab:nth-child(3){animation-delay:.15s} .seg-tab:nth-child(4){animation-delay:.2s}
+.seg-tab:hover { transform:translateY(-2px); box-shadow: var(--shadow); }
+.seg-tab.active { border-width:2px; box-shadow:var(--shadow); }
+.seg-tab.s0.active{border-color:var(--s0);background:var(--s0l)}
+.seg-tab.s1.active{border-color:var(--s1);background:var(--s1l)}
+.seg-tab.s2.active{border-color:var(--s2);background:var(--s2l)}
+.seg-tab.s3.active{border-color:var(--s3);background:var(--s3l)}
+
+.seg-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.s0 .seg-dot{background:var(--s0)} .s1 .seg-dot{background:var(--s1)}
+.s2 .seg-dot{background:var(--s2)} .s3 .seg-dot{background:var(--s3)}
+.seg-name { font-weight:600; font-size:13px; }
+.seg-count { font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); }
+
+/* Grid layouts */
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.grid-3-2 { display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:14px; margin-bottom:20px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+.grid-scatter { display:grid; grid-template-columns:1.5fr 1fr; gap:14px; margin-bottom:20px; }
+@media(max-width:900px){
+  .grid-4,.grid-3-2,.grid-2,.grid-scatter{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:560px){
+  .grid-4,.grid-3-2,.grid-2,.grid-scatter{grid-template-columns:1fr;}
+}
+
+/* Cards */
+.card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:20px;
+  box-shadow: var(--shadow);
+  animation: riseUp 0.4s ease both;
+}
+.card.delay1{animation-delay:.1s} .card.delay2{animation-delay:.2s}
+.card.delay3{animation-delay:.3s} .card.delay4{animation-delay:.4s}
+.card.delay5{animation-delay:.5s}
+
+.card-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:8px; }
+.card-title { font-family:'Playfair Display',serif; font-size:15px; font-weight:700; margin-bottom:4px; }
+.card-sub { font-size:11px; color:var(--muted); margin-bottom:14px; }
+
+/* KPI cards */
+.kpi-val { font-family:'Playfair Display',serif; font-size:30px; font-weight:900; margin:4px 0; }
+.kpi-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; font-family:'IBM Plex Mono',monospace; }
+.up{background:rgba(45,74,62,0.12);color:var(--s0)} .dn{background:rgba(139,58,82,0.12);color:var(--s1)}
+.neu{background:rgba(30,58,95,0.12);color:var(--s2)}
+
+/* Segment profile card */
+.profile-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; box-shadow:var(--shadow); }
+.profile-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.profile-avatar { width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0; }
+.s0 .profile-avatar{background:var(--s0l)} .s1 .profile-avatar{background:var(--s1l)}
+.s2 .profile-avatar{background:var(--s2l)} .s3 .profile-avatar{background:var(--s3l)}
+.profile-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;}
+.profile-label{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+
+.profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.profile-stat { background:var(--bg); border-radius:8px; padding:10px 12px; }
+.profile-stat-label { font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:3px; }
+.profile-stat-val { font-weight:600; font-size:14px; }
+
+.trait-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.trait-label { font-size:11px; color:var(--muted); }
+.trait-bar-wrap { flex:1; height:5px; background:var(--border); border-radius:3px; margin:0 10px; }
+.trait-bar { height:100%; border-radius:3px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+.trait-val { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:500; min-width:28px; text-align:right; }
+
+/* Scatter */
+.scatter-canvas-wrap { position:relative; }
+
+/* Table */
+.seg-table { width:100%; border-collapse:collapse; font-size:12px; }
+.seg-table thead th { font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); padding:8px 10px; border-bottom:1.5px solid var(--border); text-align:left; }
+.seg-table tbody tr { transition:background .15s; cursor:default; }
+.seg-table tbody tr:hover { background:var(--bg); }
+.seg-table tbody td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.seg-pip { display:inline-block; width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle; }
+.seg-chip { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; font-family:'IBM Plex Mono',monospace; }
+
+/* Upload zone */
+.upload-row { display:flex; align-items:center; gap:10px; margin-bottom:20px; padding:12px 16px; background:var(--card); border:1.5px dashed var(--border); border-radius:10px; cursor:pointer; transition:border-color .2s; }
+.upload-row:hover { border-color:var(--ink); }
+.upload-icon { font-size:18px; }
+.upload-text { font-size:12px; color:var(--muted); }
+.upload-text strong { color:var(--ink); }
+
+/* Python code block */
+.code-card { background:#1a1612; border-radius:12px; padding:18px; overflow:auto; }
+.code-eyebrow { font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:2px; color:#8a8278; margin-bottom:10px; }
+pre { font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.7; color:#c8c0b5; white-space:pre-wrap; }
+.kw{color:#f4a261} .fn{color:#90d4a0} .str{color:#b8d4f0} .cm{color:#6b6058;font-style:italic} .num{color:#e9b96e}
+
+@keyframes riseUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div style="height:4px;background:linear-gradient(90deg,#2d4a3e,#8b3a52,#1e3a5f,#7a4f1e)"></div>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="eyebrow">🧬 Internship Task 2 · Customer Analytics</div>
+      <div class="hdr-title">Customer<br>Segmentation</div>
+      <div class="hdr-sub">K-Means clustering on purchase behavior & demographics. Identify 4 distinct customer personas with actionable insights.</div>
+    </div>
+    <div class="hdr-right">
+      <label class="btn" style="cursor:pointer">
+        ⬆ Import CSV
+        <input type="file" id="fileInput" accept=".csv" onchange="handleFile(this)">
+      </label>
+      <button class="btn primary" onclick="reCluster()">↺ Re-cluster</button>
+    </div>
+  </div>
+
+  <!-- Upload hint -->
+  <label class="upload-row" for="fileInput">
+    <span class="upload-icon">📁</span>
+    <div class="upload-text">
+      <strong id="uploadLabel">Drop your customer CSV here</strong> — columns: age, income, spending_score, purchase_freq, gender, category (optional)<br>
+      <span style="font-size:11px">Sample 400-customer dataset loaded by default · K-Means (k=4) auto-applied</span>
+    </div>
+  </label>
+
+  <!-- Segment selector tabs -->
+  <div class="seg-tabs" id="segTabs"></div>
+
+  <!-- KPI Row -->
+  <div class="grid-4" id="kpiRow"></div>
+
+  <!-- Scatter + Profile -->
+  <div class="grid-scatter" style="margin-bottom:20px">
+    <div class="card delay1">
+      <div class="card-eyebrow">Cluster Plot</div>
+      <div class="card-title">Income vs. Spending Score</div>
+      <div class="card-sub">Each dot = 1 customer · Color = segment</div>
+      <canvas id="scatterChart" height="220"></canvas>
+    </div>
+    <div id="profileArea"></div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="grid-3-2" style="margin-bottom:20px">
+    <div class="card delay2">
+      <div class="card-eyebrow">Purchase Patterns</div>
+      <div class="card-title">Avg Spend by Category</div>
+      <div class="card-sub">Per segment, across product categories</div>
+      <canvas id="categoryChart" height="160"></canvas>
+    </div>
+    <div class="card delay3">
+      <div class="card-eyebrow">Demographics</div>
+      <div class="card-title">Age Distribution</div>
+      <div class="card-sub">Histogram per segment</div>
+      <canvas id="ageChart" height="160"></canvas>
+    </div>
+    <div class="card delay4">
+      <div class="card-eyebrow">Segment Size</div>
+      <div class="card-title">Customer Share</div>
+      <div class="card-sub">% of total customers</div>
+      <canvas id="pieChart" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- Radar + Bar row -->
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card delay3">
+      <div class="card-eyebrow">Behavioral Radar</div>
+      <div class="card-title">Segment Trait Comparison</div>
+      <div class="card-sub">Normalized 0–100 across 5 dimensions</div>
+      <canvas id="radarChart" height="180"></canvas>
+    </div>
+    <div class="card delay4">
+      <div class="card-eyebrow">Revenue Contribution</div>
+      <div class="card-title">Estimated CLV per Segment</div>
+      <div class="card-sub">Customer Lifetime Value proxy</div>
+      <canvas id="clvChart" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- Customer Table -->
+  <div class="card delay5" style="margin-bottom:20px;overflow:auto">
+    <div class="card-eyebrow">Customer Data</div>
+    <div class="card-title">Sample Records with Segment Labels</div>
+    <div class="card-sub" style="margin-bottom:12px">First 20 customers shown · Segmented by K-Means clustering</div>
+    <table class="seg-table">
+      <thead><tr>
+        <th>#</th><th>Segment</th><th>Age</th><th>Gender</th><th>Income (₹K)</th><th>Spending Score</th><th>Freq/Month</th><th>Fav Category</th><th>Est. CLV</th>
+      </tr></thead>
+      <tbody id="custTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Python Code Reference -->
+  <div class="card delay5" style="margin-bottom:20px">
+    <div class="card-eyebrow">📘 Python Implementation Reference</div>
+    <div class="card-title">How to run this in scikit-learn</div>
+    <div class="card-sub" style="margin-bottom:14px">Use this code in your Jupyter Notebook for actual model training</div>
+    <div class="code-card">
+      <div class="code-eyebrow">Python · scikit-learn · customer_segmentation.py</div>
+<pre><span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> sklearn.preprocessing <span class="kw">import</span> StandardScaler
+<span class="kw">from</span> sklearn.cluster <span class="kw">import</span> KMeans
+<span class="kw">from</span> sklearn.decomposition <span class="kw">import</span> PCA
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">import</span> seaborn <span class="kw">as</span> sns
+
+<span class="cm"># 1. Load Data</span>
+df = pd.<span class="fn">read_csv</span>(<span class="str">'customers.csv'</span>)
+<span class="fn">print</span>(df.<span class="fn">head</span>(), df.<span class="fn">describe</span>())
+
+<span class="cm"># 2. Feature Engineering</span>
+features = [<span class="str">'age'</span>, <span class="str">'income'</span>, <span class="str">'spending_score'</span>, <span class="str">'purchase_freq'</span>]
+X = df[features].<span class="fn">dropna</span>()
+
+<span class="cm"># 3. Normalize</span>
+scaler = <span class="fn">StandardScaler</span>()
+X_scaled = scaler.<span class="fn">fit_transform</span>(X)
+
+<span class="cm"># 4. Elbow Method — find optimal k</span>
+inertias = []
+<span class="kw">for</span> k <span class="kw">in</span> <span class="fn">range</span>(<span class="num">1</span>, <span class="num">11</span>):
+    km = <span class="fn">KMeans</span>(n_clusters=k, random_state=<span class="num">42</span>)
+    km.<span class="fn">fit</span>(X_scaled)
+    inertias.<span class="fn">append</span>(km.inertia_)
+
+<span class="cm"># 5. Fit K-Means with k=4</span>
+kmeans = <span class="fn">KMeans</span>(n_clusters=<span class="num">4</span>, random_state=<span class="num">42</span>, n_init=<span class="num">10</span>)
+df[<span class="str">'Segment'</span>] = kmeans.<span class="fn">fit_predict</span>(X_scaled)
+
+<span class="cm"># 6. Segment profiling</span>
+profile = df.<span class="fn">groupby</span>(<span class="str">'Segment'</span>)[features].<span class="fn">mean</span>().<span class="fn">round</span>(<span class="num">1</span>)
+<span class="fn">print</span>(profile)
+
+<span class="cm"># 7. PCA for scatter visualization</span>
+pca = <span class="fn">PCA</span>(n_components=<span class="num">2</span>)
+X_pca = pca.<span class="fn">fit_transform</span>(X_scaled)
+df[<span class="str">'PC1'</span>] = X_pca[:, <span class="num">0</span>]
+df[<span class="str">'PC2'</span>] = X_pca[:, <span class="num">1</span>]
+
+<span class="cm"># 8. Plot clusters</span>
+plt.<span class="fn">figure</span>(figsize=(<span class="num">10</span>, <span class="num">6</span>))
+colors = [<span class="str">'#2d4a3e'</span>, <span class="str">'#8b3a52'</span>, <span class="str">'#1e3a5f'</span>, <span class="str">'#7a4f1e'</span>]
+<span class="kw">for</span> seg, color <span class="kw">in</span> <span class="fn">enumerate</span>(colors):
+    mask = df[<span class="str">'Segment'</span>] == seg
+    plt.<span class="fn">scatter</span>(df[mask][<span class="str">'PC1'</span>], df[mask][<span class="str">'PC2'</span>], c=color, label=<span class="fn">f</span><span class="str">'Segment {seg}'</span>, alpha=<span class="num">0.7</span>)
+plt.<span class="fn">title</span>(<span class="str">'Customer Segments (PCA)'</span>)
+plt.<span class="fn">legend</span>()
+plt.<span class="fn">show</span>()</pre>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const SEG = [
+  { name:'High-Value VIPs', emoji:'👑', color:'#2d4a3e', light:'#e8f0ec', cls:'s0',
+    traits:{Income:92,Spending:88,Frequency:85,Loyalty:90,Digital:60},
+    desc:'High income, high spenders. Premium brand lovers. Respond to exclusivity.',
+    stats:{avgAge:42,avgIncome:95,avgSpend:83,freq:12,clv:68000},
+    tags:['Electronics','Luxury','Travel'] },
+  { name:'Young Shoppers', emoji:'✨', color:'#8b3a52', light:'#f5eaed', cls:'s1',
+    traits:{Income:45,Spending:75,Frequency:78,Loyalty:50,Digital:95},
+    desc:'Lower income, trend-driven high spenders. Digital-native impulse buyers.',
+    stats:{avgAge:24,avgIncome:38,avgSpend:72,freq:10,clv:29000},
+    tags:['Fashion','Beauty','Food'] },
+  { name:'Careful Planners', emoji:'📋', color:'#1e3a5f', light:'#e8edf4', cls:'s2',
+    traits:{Income:70,Spending:35,Frequency:40,Loyalty:75,Digital:55},
+    desc:'Mid-high income, frugal spenders. Research-heavy, value-seekers.',
+    stats:{avgAge:38,avgIncome:72,avgSpend:31,freq:4,clv:18000},
+    tags:['Home','Electronics','Books'] },
+  { name:'Occasional Browsers', emoji:'🌿', color:'#7a4f1e', light:'#f5efe6', cls:'s3',
+    traits:{Income:38,Spending:28,Frequency:22,Loyalty:30,Digital:40},
+    desc:'Low income, low spend. Infrequent visitors. Price-sensitive. Hard to retain.',
+    stats:{avgAge:51,avgIncome:34,avgSpend:25,freq:2,clv:8000},
+    tags:['Food','Household','Sports'] },
+];
+
+const CATEGORIES = ['Electronics','Fashion','Beauty','Home','Sports','Food'];
+const CAT_DATA = [
+  [22,8,6,18,14,12],[6,24,20,8,10,18],[14,6,4,28,8,6],[8,4,8,10,6,16]
+];
+
+// Generate 400 fake customers
+function genCustomers() {
+  const rows = [];
+  const genders = ['Male','Female','Other'];
+  SEG.forEach((seg,si)=>{
+    const n = [90,110,105,95][si];
+    for(let i=0;i<n;i++){
+      const age = Math.round(seg.stats.avgAge + (Math.random()-0.5)*16);
+      const income = Math.round(seg.stats.avgIncome + (Math.random()-0.5)*20);
+      const spend = Math.round(seg.stats.avgSpend + (Math.random()-0.5)*18);
+      const freq = Math.max(1,Math.round(seg.stats.freq + (Math.random()-0.5)*4));
+      const clv = Math.round(seg.stats.clv * (0.8+Math.random()*0.4));
+      rows.push({
+        id: rows.length+1, seg:si, segName:seg.name,
+        age: Math.max(18,Math.min(75,age)),
+        gender: genders[Math.floor(Math.random()*3)],
+        income: Math.max(10,income),
+        spend: Math.max(5,Math.min(100,spend)),
+        freq, clv,
+        cat: seg.tags[Math.floor(Math.random()*seg.tags.length)]
+      });
+    }
+  });
+  return rows.sort(()=>Math.random()-0.5);
+}
+
+let customers = genCustomers();
+let activeSeg = null;
+let scatterChart,categoryChart,ageChart,pieChart,radarChart,clvChart;
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  renderTabs();
+  renderKPIs();
+  renderScatter();
+  renderProfile(0);
+  renderCategoryChart();
+  renderAgeChart();
+  renderPieChart();
+  renderRadarChart();
+  renderCLVChart();
+  renderTable();
+}
+
+function reCluster() {
+  customers = genCustomers();
+  init();
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function renderTabs() {
+  const el = document.getElementById('segTabs');
+  el.innerHTML = SEG.map((s,i)=>{
+    const cnt = customers.filter(c=>c.seg===i).length;
+    return `<div class="seg-tab ${s.cls} ${i===0?'active':''}" onclick="selectSeg(${i},this)">
+      <span class="seg-dot"></span>
+      <div>
+        <div class="seg-name">${s.emoji} ${s.name}</div>
+        <div class="seg-count">${cnt} customers</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectSeg(i, el) {
+  document.querySelectorAll('.seg-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderProfile(i);
+  updateScatterHighlight(i);
+}
+
+// ─── KPIs ────────────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const total = customers.length;
+  const avgInc = (customers.reduce((s,c)=>s+c.income,0)/total).toFixed(0);
+  const avgSpend = (customers.reduce((s,c)=>s+c.spend,0)/total).toFixed(1);
+  const totalCLV = customers.reduce((s,c)=>s+c.clv,0);
+  const kpis = [
+    {label:'Total Customers',val:total,badge:'4 segments',type:'neu'},
+    {label:'Avg Monthly Income',val:'₹'+avgInc+'K',badge:'↑ diverse range',type:'up'},
+    {label:'Avg Spending Score',val:avgSpend+'/100',badge:'balanced',type:'neu'},
+    {label:'Total Est. CLV',val:'₹'+(totalCLV/1000000).toFixed(1)+'M',badge:'↑ growth potential',type:'up'},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map((k,i)=>`
+    <div class="card" style="animation-delay:${i*0.07}s">
+      <div class="card-eyebrow">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <span class="kpi-badge ${k.type}">${k.badge}</span>
+    </div>`).join('');
+}
+
+// ─── PROFILE ─────────────────────────────────────────────────────────────────
+function renderProfile(i) {
+  const s = SEG[i];
+  const cust = customers.filter(c=>c.seg===i);
+  const traits = s.traits;
+  document.getElementById('profileArea').innerHTML = `
+    <div class="profile-card ${s.cls}" style="height:100%">
+      <div class="profile-header">
+        <div class="profile-avatar">${s.emoji}</div>
+        <div>
+          <div class="profile-name">${s.name}</div>
+          <div class="profile-label">Segment ${i+1} of 4 · ${cust.length} customers</div>
+        </div>
+      </div>
+      <div class="profile-grid">
+        <div class="profile-stat"><div class="profile-stat-label">Avg Age</div><div class="profile-stat-val">${s.stats.avgAge} yrs</div></div>
+        <div class="profile-stat"><div class="profile-stat-label">Avg Income</div><div class="profile-stat-val">₹${s.stats.avgIncome}K</div></div>
+        <div class="profile-stat"><div class="profile-stat-label">Spending Score</div><div class="profile-stat-val">${s.stats.avgSpend}/100</div></div>
+        <div class="profile-stat"><div class="profile-stat-label">Purchases/Mo</div><div class="profile-stat-val">${s.stats.freq}</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5">${s.desc}</div>
+      <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase">Behavioral Traits</div>
+      ${Object.entries(traits).map(([k,v])=>`
+        <div class="trait-row">
+          <div class="trait-label">${k}</div>
+          <div class="trait-bar-wrap"><div class="trait-bar" style="width:${v}%;background:${s.color}"></div></div>
+          <div class="trait-val">${v}</div>
+        </div>`).join('')}
+      <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+        ${s.tags.map(t=>`<span style="padding:3px 10px;border-radius:4px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:${s.light};color:${s.color}">${t}</span>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ─── SCATTER ─────────────────────────────────────────────────────────────────
+let scatterDatasets = [];
+function renderScatter() {
+  scatterDatasets = SEG.map((s,si)=>({
+    label: s.name,
+    data: customers.filter(c=>c.seg===si).map(c=>({x:c.income,y:c.spend,r:4})),
+    backgroundColor: s.color+'cc',
+    borderColor: s.color,
+    borderWidth: 1,
+    pointRadius: 4,
+  }));
+  const ctx = document.getElementById('scatterChart').getContext('2d');
+  if(scatterChart) scatterChart.destroy();
+  scatterChart = new Chart(ctx, {
+    type:'scatter',
+    data:{datasets:scatterDatasets},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8a8278',font:{size:10},boxWidth:10}}},
+      scales:{
+        x:{title:{display:true,text:'Income (₹K)',color:'#8a8278',font:{size:10}},grid:{color:'#e0dbd2'},ticks:{color:'#8a8278',font:{size:9}}},
+        y:{title:{display:true,text:'Spending Score',color:'#8a8278',font:{size:10}},grid:{color:'#e0dbd2'},ticks:{color:'#8a8278',font:{size:9}}}
+      }}
+  });
+}
+
+function updateScatterHighlight(si) {
+  scatterChart.data.datasets.forEach((ds,i)=>{
+    ds.backgroundColor = SEG[i].color+(i===si?'ee':'33');
+    ds.pointRadius = i===si?5:3;
+  });
+  scatterChart.update();
+}
+
+// ─── CATEGORY CHART ──────────────────────────────────────────────────────────
+function renderCategoryChart() {
+  const ctx = document.getElementById('categoryChart').getContext('2d');
+  if(categoryChart) categoryChart.destroy();
+  categoryChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:CATEGORIES,
+      datasets:SEG.map((s,i)=>({label:s.name,data:CAT_DATA[i],backgroundColor:s.color+'bb',borderRadius:4,borderSkipped:false}))
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8a8278',font:{size:9},boxWidth:8},position:'bottom'}},
+      scales:{x:{stacked:false,grid:{display:false},ticks:{color:'#8a8278',font:{size:9}}},
+        y:{grid:{color:'#e0dbd2'},ticks:{color:'#8a8278',font:{size:9}}}}}
+  });
+}
+
+// ─── AGE CHART ───────────────────────────────────────────────────────────────
+function renderAgeChart() {
+  const bins = ['18-25','26-35','36-45','46-55','56-65','65+'];
+  const ranges = [[18,25],[26,35],[36,45],[46,55],[56,65],[66,99]];
+  const data = SEG.map((s,si)=>ranges.map(([lo,hi])=>customers.filter(c=>c.seg===si&&c.age>=lo&&c.age<=hi).length));
+  const ctx = document.getElementById('ageChart').getContext('2d');
+  if(ageChart) ageChart.destroy();
+  ageChart = new Chart(ctx, {
+    type:'bar',
+    data:{labels:bins,datasets:SEG.map((s,i)=>({label:s.name,data:data[i],backgroundColor:s.color+'bb',borderRadius:3,borderSkipped:false}))},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8a8278',font:{size:9},boxWidth:8},position:'bottom'}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#8a8278',font:{size:9}}},
+        y:{stacked:true,grid:{color:'#e0dbd2'},ticks:{color:'#8a8278',font:{size:9}}}}}
+  });
+}
+
+// ─── PIE ─────────────────────────────────────────────────────────────────────
+function renderPieChart() {
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  if(pieChart) pieChart.destroy();
+  pieChart = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:SEG.map(s=>s.name),datasets:[{data:SEG.map((_,i)=>customers.filter(c=>c.seg===i).length),backgroundColor:SEG.map(s=>s.color),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#8a8278',font:{size:9},padding:8,boxWidth:10}}}}
+  });
+}
+
+// ─── RADAR ───────────────────────────────────────────────────────────────────
+function renderRadarChart() {
+  const labels = ['Income','Spending','Frequency','Loyalty','Digital'];
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  if(radarChart) radarChart.destroy();
+  radarChart = new Chart(ctx, {
+    type:'radar',
+    data:{labels,datasets:SEG.map(s=>({label:s.name,data:Object.values(s.traits),borderColor:s.color,backgroundColor:s.color+'22',borderWidth:2,pointBackgroundColor:s.color,pointRadius:3}))},
+    options:{responsive:true,scales:{r:{min:0,max:100,grid:{color:'#e0dbd2'},angleLines:{color:'#e0dbd2'},ticks:{display:false},pointLabels:{color:'#8a8278',font:{size:10}}}},
+      plugins:{legend:{position:'bottom',labels:{color:'#8a8278',font:{size:9},boxWidth:10,padding:8}}}}
+  });
+}
+
+// ─── CLV ─────────────────────────────────────────────────────────────────────
+function renderCLVChart() {
+  const ctx = document.getElementById('clvChart').getContext('2d');
+  if(clvChart) clvChart.destroy();
+  const clvTotals = SEG.map((_,i)=>Math.round(customers.filter(c=>c.seg===i).reduce((s,c)=>s+c.clv,0)/1000));
+  clvChart = new Chart(ctx, {
+    type:'bar',
+    data:{labels:SEG.map(s=>s.emoji+' '+s.name.split(' ')[0]),datasets:[{label:'Est. CLV (₹K)',data:clvTotals,backgroundColor:SEG.map(s=>s.color+'cc'),borderRadius:8,borderSkipped:false}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false},ticks:{color:'#8a8278',font:{size:10}}},
+        y:{grid:{color:'#e0dbd2'},ticks:{color:'#8a8278',font:{size:9},callback:v=>'₹'+v+'K'}}}}
+  });
+}
+
+// ─── TABLE ───────────────────────────────────────────────────────────────────
+function renderTable() {
+  const sample = customers.slice(0,20);
+  document.getElementById('custTable').innerHTML = sample.map(c=>{
+    const s = SEG[c.seg];
+    return `<tr>
+      <td style="color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11px">${c.id}</td>
+      <td><span class="seg-pip" style="background:${s.color}"></span><span style="font-weight:600;font-size:12px">${s.name}</span></td>
+      <td>${c.age}</td>
+      <td style="color:var(--muted)">${c.gender}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">₹${c.income}K</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:40px;height:4px;border-radius:2px;background:var(--border)"><div style="width:${c.spend}%;height:100%;background:${s.color};border-radius:2px"></div></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px">${c.spend}</span>
+        </div>
+      </td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${c.freq}×</td>
+      <td><span class="seg-chip" style="background:${s.light};color:${s.color}">${c.cat}</span></td>
+      <td style="font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:11px">₹${(c.clv/1000).toFixed(0)}K</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── FILE IMPORT ─────────────────────────────────────────────────────────────
+function handleFile(input) {
+  const file = input.files[0]; if(!file) return;
+  document.getElementById('uploadLabel').textContent = '📂 '+file.name+' loaded';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = e.target.result.trim().split('\n').map(r=>r.split(',').map(v=>v.trim().replace(/^"|"$/g,'')));
+    const h = rows[0].map(x=>x.toLowerCase());
+    const g = k => { const i=h.findIndex(x=>x.includes(k)); return i>=0?i:-1; };
+    const iAge=g('age'),iInc=g('income'),iSpend=g('spend'),iFreq=g('freq');
+    customers = rows.slice(1).map((r,idx)=>{
+      const age=+(r[iAge])||30, income=+(r[iInc])||50, spend=+(r[iSpend])||50, freq=+(r[iFreq])||5;
+      const si = income>70&&spend>70?0:income<50&&spend>60?1:income>60&&spend<45?2:3;
+      return {id:idx+1,seg:si,segName:SEG[si].name,age,gender:'Unknown',income,spend,freq,clv:Math.round(income*spend*freq*10),cat:SEG[si].tags[0]};
+    });
+    init();
+  };
+  reader.readAsText(file);
+}
+
+// GO
+init();
+</script>
+</body>
+</html>
