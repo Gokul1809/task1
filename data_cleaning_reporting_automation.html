@@ -1,0 +1,440 @@
+
+<h2 class="sr-only">Data cleaning and reporting automation dashboard — simulate data ingestion, automated cleaning steps, quality metrics, and visual summary reports</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.root{font-family:var(--font-sans);padding:1.5rem 0}
+.tabs{display:flex;gap:2px;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:1.5rem}
+.tab{padding:8px 14px;font-size:13px;border:none;background:none;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;transition:all .15s}
+.tab.on{color:var(--color-text-primary);border-bottom-color:#185FA5;font-weight:500}
+.pane{display:none}.pane.on{display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
+.mc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+.mc-l{font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.mc-v{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.mc-s{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.ok{color:#1D9E75}.warn{color:#BA7517}.err{color:#A32D2D}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.b-ok{background:#EAF3DE;color:#3B6D11}.b-warn{background:#FAEEDA;color:#854F0B}.b-err{background:#FCEBEB;color:#A32D2D}.b-blue{background:#E6F1FB;color:#0C447C}
+.step-list{display:flex;flex-direction:column;gap:0}
+.step{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:0.5px solid var(--color-border-tertiary);cursor:pointer}
+.step:last-child{border-bottom:none}
+.step-icon{width:36px;height:36px;border-radius:var(--border-radius-md);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.step-body{flex:1}
+.step-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.step-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.step-stat{font-size:12px;margin-top:4px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label{font-size:12px;color:var(--color-text-secondary);width:110px;flex-shrink:0;text-align:right}
+.bar-track{flex:1;height:8px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s}
+.bar-val{font-size:12px;color:var(--color-text-primary);width:40px;flex-shrink:0}
+.log-line{font-family:var(--font-mono);font-size:12px;line-height:1.8;color:var(--color-text-secondary)}
+.log-line span{color:var(--color-text-primary)}
+.log-line.ok-l span{color:#1D9E75}
+.log-line.warn-l span{color:#BA7517}
+.log-line.err-l{color:#A32D2D}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.tbl th{text-align:left;padding:7px 8px;color:var(--color-text-secondary);font-weight:500;border-bottom:0.5px solid var(--color-border-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.tbl td{padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary)}
+.tbl tr:hover td{background:var(--color-background-secondary)}
+.run-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;cursor:pointer;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:none;color:var(--color-text-primary);transition:background .15s}
+.run-btn:hover{background:var(--color-background-secondary)}
+.run-btn:active{transform:scale(.98)}
+.progress-wrap{margin:1rem 0}
+.progress-track{height:4px;background:var(--color-background-secondary);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.progress-bar{height:100%;background:#185FA5;border-radius:2px;width:0%;transition:width .4s}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem}
+.chip{padding:4px 10px;border-radius:99px;font-size:12px;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
+.chip.active{background:#E6F1FB;border-color:#85B7EB;color:#0C447C}
+.code-block{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px;font-family:var(--font-mono);font-size:12px;line-height:1.8;color:var(--color-text-secondary);overflow-x:auto;border:0.5px solid var(--color-border-tertiary)}
+.code-block .kw{color:#185FA5}.code-block .fn{color:#1D9E75}.code-block .cm{color:#888780}.code-block .st{color:#BA7517}
+</style>
+
+<div class="root">
+<div style="margin-bottom:1.5rem">
+  <div style="font-size:18px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px">Data Cleaning &amp; Reporting Automation</div>
+  <div style="font-size:13px;color:var(--color-text-secondary)">Task 4 · Internship Project — simulate, clean, and auto-report on a messy dataset</div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" onclick="sw('pipeline')">Pipeline</button>
+  <button class="tab" onclick="sw('rawdata')">Raw data</button>
+  <button class="tab" onclick="sw('cleaned')">Cleaned data</button>
+  <button class="tab" onclick="sw('report')">Auto-report</button>
+  <button class="tab" onclick="sw('code')">Python code</button>
+</div>
+
+<div id="pane-pipeline" class="pane on">
+  <div class="metrics">
+    <div class="mc"><div class="mc-l">Total records</div><div class="mc-v" id="m-total">200</div><div class="mc-s">Simulated dataset</div></div>
+    <div class="mc"><div class="mc-l">Issues found</div><div class="mc-v warn" id="m-issues">—</div><div class="mc-s">Before cleaning</div></div>
+    <div class="mc"><div class="mc-l">Clean records</div><div class="mc-v ok" id="m-clean">—</div><div class="mc-s">After pipeline</div></div>
+    <div class="mc"><div class="mc-l">Quality score</div><div class="mc-v" id="m-score">—</div><div class="mc-s">0–100 scale</div></div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem">
+    <button class="run-btn" id="runBtn" onclick="runPipeline()">
+      <i class="ti ti-player-play" aria-hidden="true" style="font-size:16px"></i> Run cleaning pipeline
+    </button>
+    <div class="progress-wrap" style="flex:1;margin:0">
+      <div class="progress-track"><div class="progress-bar" id="pbar"></div></div>
+      <div style="font-size:11px;color:var(--color-text-secondary)" id="pstatus">Ready</div>
+    </div>
+  </div>
+
+  <div class="step-list" id="stepList">
+    <div class="step" onclick="sendPrompt('Explain how to handle missing values in a dataset using pandas')">
+      <div class="step-icon" style="background:#E6F1FB;color:#185FA5"><i class="ti ti-file-import" aria-hidden="true"></i></div>
+      <div class="step-body">
+        <div class="step-title">1. Data ingestion</div>
+        <div class="step-desc">Load CSV/Excel, detect delimiter, parse dates, infer dtypes</div>
+        <div class="step-stat" id="st1"><span class="badge b-blue">Pending</span></div>
+      </div>
+    </div>
+    <div class="step" onclick="sendPrompt('What are best practices for handling missing values — imputation vs deletion?')">
+      <div class="step-icon" style="background:#FAEEDA;color:#854F0B"><i class="ti ti-circle-dashed" aria-hidden="true"></i></div>
+      <div class="step-body">
+        <div class="step-title">2. Missing value handler</div>
+        <div class="step-desc">Detect nulls per column, impute numeric with median, categorical with mode, flag rows &gt;30% null</div>
+        <div class="step-stat" id="st2"><span class="badge b-blue">Pending</span></div>
+      </div>
+    </div>
+    <div class="step" onclick="sendPrompt('How do I detect and remove duplicate rows in pandas?')">
+      <div class="step-icon" style="background:#EAF3DE;color:#3B6D11"><i class="ti ti-copy" aria-hidden="true"></i></div>
+      <div class="step-body">
+        <div class="step-title">3. Duplicate removal</div>
+        <div class="step-desc">Exact match dedup, fuzzy-match on key columns, keep first occurrence by timestamp</div>
+        <div class="step-stat" id="st3"><span class="badge b-blue">Pending</span></div>
+      </div>
+    </div>
+    <div class="step" onclick="sendPrompt('How do I standardise inconsistent text values and fix data type mismatches?')">
+      <div class="step-icon" style="background:#FAECE7;color:#993C1D"><i class="ti ti-adjustments" aria-hidden="true"></i></div>
+      <div class="step-body">
+        <div class="step-title">4. Standardisation</div>
+        <div class="step-desc">Title-case text, strip whitespace, unify date formats, cast numeric columns, fix currency symbols</div>
+        <div class="step-stat" id="st4"><span class="badge b-blue">Pending</span></div>
+      </div>
+    </div>
+    <div class="step" onclick="sendPrompt('Explain IQR-based outlier detection and when to remove vs cap outliers')">
+      <div class="step-icon" style="background:#FCEBEB;color:#A32D2D"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+      <div class="step-body">
+        <div class="step-title">5. Outlier detection</div>
+        <div class="step-desc">IQR fence method, Z-score on numerics, flag extreme values, cap at 1.5×IQR</div>
+        <div class="step-stat" id="st5"><span class="badge b-blue">Pending</span></div>
+      </div>
+    </div>
+    <div class="step" onclick="sendPrompt('How do I auto-generate a data quality report using Python?')">
+      <div class="step-icon" style="background:#E1F5EE;color:#0F6E56"><i class="ti ti-report-analytics" aria-hidden="true"></i></div>
+      <div class="step-body">
+        <div class="step-title">6. Report generation</div>
+        <div class="step-desc">Compute quality score, generate visual summaries, export cleaned CSV + HTML report</div>
+        <div class="step-stat" id="st6"><span class="badge b-blue">Pending</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pane-rawdata" class="pane">
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">Simulated 200-row sales dataset with injected issues — missing values, duplicates, type errors, inconsistent labels, and outliers.</div>
+  <div class="chip-row" id="filterChips">
+    <div class="chip active" onclick="filterRows('all',this)">All rows</div>
+    <div class="chip" onclick="filterRows('missing',this)">Missing values</div>
+    <div class="chip" onclick="filterRows('dup',this)">Duplicates</div>
+    <div class="chip" onclick="filterRows('outlier',this)">Outliers</div>
+    <div class="chip" onclick="filterRows('type',this)">Type errors</div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="tbl" id="rawTable">
+      <thead><tr>
+        <th style="width:40px">#</th>
+        <th style="width:90px">order_id</th>
+        <th style="width:110px">date</th>
+        <th style="width:90px">customer</th>
+        <th style="width:80px">region</th>
+        <th style="width:80px">amount</th>
+        <th style="width:80px">status</th>
+        <th style="width:90px">issue</th>
+      </tr></thead>
+      <tbody id="rawBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="pane-cleaned" class="pane">
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">After pipeline — all issues resolved, types normalised, outliers capped. <span id="cleanedNote">Run the pipeline first.</span></div>
+  <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+    <div class="mc"><div class="mc-l">Nulls imputed</div><div class="mc-v ok" id="c-nulls">—</div></div>
+    <div class="mc"><div class="mc-l">Duplicates dropped</div><div class="mc-v ok" id="c-dups">—</div></div>
+    <div class="mc"><div class="mc-l">Outliers capped</div><div class="mc-v ok" id="c-outs">—</div></div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="tbl" id="cleanTable">
+      <thead><tr>
+        <th style="width:40px">#</th>
+        <th style="width:90px">order_id</th>
+        <th style="width:110px">date</th>
+        <th style="width:90px">customer</th>
+        <th style="width:80px">region</th>
+        <th style="width:80px">amount</th>
+        <th style="width:80px">status</th>
+        <th style="width:90px">action</th>
+      </tr></thead>
+      <tbody id="cleanBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="pane-report" class="pane">
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">Auto-generated summary report — run the pipeline to populate.</div>
+  <div class="metrics" id="reportMetrics">
+    <div class="mc"><div class="mc-l">Data completeness</div><div class="mc-v" id="r-comp">—</div><div class="mc-s">% non-null</div></div>
+    <div class="mc"><div class="mc-l">Dedup ratio</div><div class="mc-v" id="r-ded">—</div><div class="mc-s">% unique rows</div></div>
+    <div class="mc"><div class="mc-l">Outlier rate</div><div class="mc-v" id="r-out">—</div><div class="mc-s">% rows affected</div></div>
+    <div class="mc"><div class="mc-l">Overall quality</div><div class="mc-v" id="r-qual">—</div><div class="mc-s">DQI score</div></div>
+  </div>
+  <div style="margin-bottom:1.5rem">
+    <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px">Column-level quality</div>
+    <div id="colBars"></div>
+  </div>
+  <div style="position:relative;width:100%;height:240px;margin-bottom:1.5rem">
+    <canvas id="regionChart" role="img" aria-label="Bar chart of total sales by region after cleaning">Regional sales chart.</canvas>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="run-btn" onclick="sendPrompt('How do I export this report as an HTML file using pandas and Jinja2?')">Export as HTML report ↗</button>
+    <button class="run-btn" onclick="sendPrompt('How do I schedule this data cleaning pipeline to run daily using cron or Airflow?')">Schedule pipeline ↗</button>
+  </div>
+</div>
+
+<div id="pane-code" class="pane">
+  <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">Production-ready Python automation script — copy and adapt for your own dataset.</div>
+  <div class="code-block">
+<span class="cm"># data_cleaning_pipeline.py — Task 4 Internship Project</span>
+<span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="cm"># ── Step 1: Ingest ─────────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">load_data</span>(path):
+    df = pd.<span class="fn">read_csv</span>(path, parse_dates=[<span class="st">'date'</span>])
+    <span class="kw">print</span>(f<span class="st">"Loaded {len(df)} rows, {df.shape[1]} columns"</span>)
+    <span class="kw">return</span> df
+
+<span class="cm"># ── Step 2: Handle missing values ──────────────────────────</span>
+<span class="kw">def</span> <span class="fn">handle_missing</span>(df):
+    null_pct = df.<span class="fn">isnull</span>().<span class="fn">mean</span>()
+    drop_cols = null_pct[null_pct > <span class="st">0.5</span>].<span class="fn">index</span>.<span class="fn">tolist</span>()
+    df = df.<span class="fn">drop</span>(columns=drop_cols)
+    num_cols = df.<span class="fn">select_dtypes</span>(include=<span class="st">'number'</span>).<span class="fn">columns</span>
+    df[num_cols] = df[num_cols].<span class="fn">fillna</span>(df[num_cols].<span class="fn">median</span>())
+    cat_cols = df.<span class="fn">select_dtypes</span>(include=<span class="st">'object'</span>).<span class="fn">columns</span>
+    df[cat_cols] = df[cat_cols].<span class="fn">fillna</span>(df[cat_cols].<span class="fn">mode</span>().<span class="fn">iloc</span>[<span class="st">0</span>])
+    <span class="kw">return</span> df
+
+<span class="cm"># ── Step 3: Remove duplicates ──────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">remove_duplicates</span>(df, key=<span class="st">'order_id'</span>):
+    before = <span class="fn">len</span>(df)
+    df = df.<span class="fn">drop_duplicates</span>(subset=[key], keep=<span class="st">'first'</span>)
+    <span class="kw">print</span>(f<span class="st">"Removed {before - len(df)} duplicate rows"</span>)
+    <span class="kw">return</span> df
+
+<span class="cm"># ── Step 4: Standardise ────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">standardise</span>(df):
+    df[<span class="st">'region'</span>] = df[<span class="st">'region'</span>].<span class="fn">str.strip</span>().<span class="fn">str.title</span>()
+    df[<span class="st">'status'</span>] = df[<span class="st">'status'</span>].<span class="fn">str.lower</span>().<span class="fn">str.strip</span>()
+    df[<span class="st">'amount'</span>] = pd.<span class="fn">to_numeric</span>(
+        df[<span class="st">'amount'</span>].<span class="fn">astype</span>(<span class="st">str</span>).<span class="fn">str.replace</span>(<span class="st">r'[₹$,]'</span>, <span class="st">''</span>, regex=<span class="st">True</span>),
+        errors=<span class="st">'coerce'</span>)
+    <span class="kw">return</span> df
+
+<span class="cm"># ── Step 5: Cap outliers (IQR method) ─────────────────────</span>
+<span class="kw">def</span> <span class="fn">cap_outliers</span>(df, col=<span class="st">'amount'</span>):
+    Q1 = df[col].<span class="fn">quantile</span>(<span class="st">0.25</span>)
+    Q3 = df[col].<span class="fn">quantile</span>(<span class="st">0.75</span>)
+    IQR = Q3 - Q1
+    lo, hi = Q1 - <span class="st">1.5</span>*IQR, Q3 + <span class="st">1.5</span>*IQR
+    df[col] = df[col].<span class="fn">clip</span>(lo, hi)
+    <span class="kw">return</span> df
+
+<span class="cm"># ── Step 6: Quality report ─────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">quality_report</span>(df):
+    completeness = (<span class="st">1</span> - df.<span class="fn">isnull</span>().<span class="fn">mean</span>()).<span class="fn">mean</span>() * <span class="st">100</span>
+    <span class="kw">print</span>(f<span class="st">"Completeness: {completeness:.1f}%"</span>)
+    df.<span class="fn">to_csv</span>(<span class="st">'cleaned_data.csv'</span>, index=<span class="st">False</span>)
+    <span class="kw">print</span>(<span class="st">"Saved → cleaned_data.csv"</span>)
+
+<span class="cm"># ── Run pipeline ───────────────────────────────────────────</span>
+<span class="kw">if</span> __name__ == <span class="st">'__main__'</span>:
+    df = <span class="fn">load_data</span>(<span class="st">'raw_sales.csv'</span>)
+    df = <span class="fn">handle_missing</span>(df)
+    df = <span class="fn">remove_duplicates</span>(df)
+    df = <span class="fn">standardise</span>(df)
+    df = <span class="fn">cap_outliers</span>(df)
+    <span class="fn">quality_report</span>(df)
+  </div>
+  <div style="margin-top:1rem">
+    <button class="run-btn" onclick="sendPrompt('How do I add Excel output and HTML report generation to this Python data cleaning script?')">Add Excel + HTML output ↗</button>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+function sw(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',['pipeline','rawdata','cleaned','report','code'][i]===name));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.getElementById('pane-'+name).classList.add('on');
+}
+
+const REGIONS=['North','South','East','West'];
+const STATUSES=['completed','pending','cancelled','refunded'];
+const CUSTOMERS=['Arjun S','Priya M','Ravi K','Sneha T','Vikram N','Anita R','Deepak L','Kavya B'];
+let rng=1;
+function rand(){rng=(rng*16807)%2147483647;return(rng-1)/2147483646;}
+function randInt(a,b){return Math.floor(rand()*(b-a+1))+a;}
+function pick(arr){return arr[randInt(0,arr.length-1)];}
+
+const rawRows=[];
+const issues=['missing','dup','outlier','type','clean'];
+const issueCounts={missing:0,dup:0,outlier:0,type:0};
+for(let i=0;i<200;i++){
+  const base={
+    idx:i+1,
+    order_id:'ORD-'+String(1000+i).padStart(4,'0'),
+    date:`2024-${String(randInt(1,12)).padStart(2,'0')}-${String(randInt(1,28)).padStart(2,'0')}`,
+    customer:pick(CUSTOMERS),
+    region:pick(REGIONS),
+    amount:randInt(500,8000),
+    status:pick(STATUSES),
+    issue:'clean'
+  };
+  const r=rand();
+  if(i>0&&r<0.08){base.order_id=rawRows[Math.max(0,i-3)].order_id;base.issue='dup';issueCounts.dup++;}
+  else if(r<0.18){base.amount='';base.issue='missing';issueCounts.missing++;}
+  else if(r<0.26){base.region=pick(['north','SOUTH','  East','west ']);base.issue='type';issueCounts.type++;}
+  else if(r<0.32){base.amount=randInt(50000,120000);base.issue='outlier';issueCounts.outlier++;}
+  rawRows.push(base);
+}
+
+let currentFilter='all';
+function filterRows(type,el){
+  currentFilter=type;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderRaw();
+}
+
+function issueLabel(issue){
+  if(issue==='clean')return '<span class="badge b-ok">Clean</span>';
+  if(issue==='missing')return '<span class="badge b-warn">Missing</span>';
+  if(issue==='dup')return '<span class="badge b-warn">Duplicate</span>';
+  if(issue==='outlier')return '<span class="badge b-err">Outlier</span>';
+  if(issue==='type')return '<span class="badge b-err">Type error</span>';
+  return '';
+}
+
+function renderRaw(){
+  const rows=currentFilter==='all'?rawRows:rawRows.filter(r=>r.issue===currentFilter);
+  const show=rows.slice(0,25);
+  document.getElementById('rawBody').innerHTML=show.map(r=>`<tr>
+    <td>${r.idx}</td><td>${r.order_id}</td><td>${r.date}</td><td>${r.customer}</td>
+    <td>${r.region}</td><td>${r.amount||'<em style="color:var(--color-text-tertiary)">null</em>'}</td>
+    <td>${r.status}</td><td>${issueLabel(r.issue)}</td>
+  </tr>`).join('');
+}
+
+renderRaw();
+
+let regionChart=null;
+let pipelineDone=false;
+
+function runPipeline(){
+  if(pipelineDone)return;
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader" aria-hidden="true" style="font-size:16px"></i> Running...';
+  const steps=[
+    {id:'st1',label:'Ingested 200 rows across 7 columns',cls:'b-ok',badge:'Done'},
+    {id:'st2',label:`Imputed ${issueCounts.missing} missing values (median/mode)`,cls:'b-ok',badge:'Done'},
+    {id:'st3',label:`Removed ${issueCounts.dup} exact-match duplicates`,cls:'b-ok',badge:'Done'},
+    {id:'st4',label:`Standardised ${issueCounts.type} inconsistent labels`,cls:'b-ok',badge:'Done'},
+    {id:'st5',label:`Capped ${issueCounts.outlier} outliers at IQR×1.5 fence`,cls:'b-ok',badge:'Done'},
+    {id:'st6',label:'Quality score computed — report ready',cls:'b-ok',badge:'Done'}
+  ];
+  const bar=document.getElementById('pbar');
+  const pstatus=document.getElementById('pstatus');
+  steps.forEach((s,i)=>{
+    setTimeout(()=>{
+      document.getElementById(s.id).innerHTML=`<span class="badge ${s.cls}">${s.badge}</span> <span style="font-size:12px;color:var(--color-text-secondary)">${s.label}</span>`;
+      bar.style.width=((i+1)/steps.length*100)+'%';
+      pstatus.textContent='Step '+(i+1)+'/'+steps.length+' complete';
+      if(i===steps.length-1){
+        pipelineDone=true;
+        btn.innerHTML='<i class="ti ti-check" aria-hidden="true" style="font-size:16px"></i> Pipeline complete';
+        pstatus.textContent='All steps done — report generated';
+        const total=200,fixed=issueCounts.missing+issueCounts.dup+issueCounts.type+issueCounts.outlier;
+        const cleanCount=total-issueCounts.dup;
+        document.getElementById('m-issues').textContent=fixed;
+        document.getElementById('m-clean').textContent=cleanCount;
+        const score=Math.round((cleanCount/total)*100*0.6+(1-issueCounts.outlier/total)*100*0.4);
+        document.getElementById('m-score').textContent=score+'%';
+        document.getElementById('m-score').className='mc-v ok';
+        buildCleanedTable();
+        buildReport(total,cleanCount,fixed);
+      }
+    },i*700+300);
+  });
+}
+
+function buildCleanedTable(){
+  document.getElementById('cleanedNote').textContent='Pipeline complete — '+( 200-issueCounts.dup)+' clean records.';
+  document.getElementById('c-nulls').textContent=issueCounts.missing;
+  document.getElementById('c-dups').textContent=issueCounts.dup;
+  document.getElementById('c-outs').textContent=issueCounts.outlier;
+  const cleaned=rawRows.filter(r=>r.issue!=='dup').map(r=>{
+    const amt=r.amount===''?5200:typeof r.amount==='number'&&r.amount>20000?9800:r.amount;
+    const reg=r.region.trim().replace(/\b\w/g,c=>c.toUpperCase());
+    const action=r.issue==='clean'?'<span class="badge b-ok">No change</span>':r.issue==='missing'?'<span class="badge b-blue">Imputed</span>':r.issue==='outlier'?'<span class="badge b-warn">Capped</span>':'<span class="badge b-blue">Standardised</span>';
+    return `<tr><td>${r.idx}</td><td>${r.order_id}</td><td>${r.date}</td><td>${r.customer}</td><td>${reg}</td><td>₹${Number(amt).toLocaleString('en-IN')}</td><td>${r.status}</td><td>${action}</td></tr>`;
+  });
+  document.getElementById('cleanBody').innerHTML=cleaned.slice(0,30).join('');
+}
+
+function buildReport(total,cleanCount,fixed){
+  const comp=Math.round((cleanCount/total)*100);
+  const ded=Math.round(((total-issueCounts.dup)/total)*100);
+  const outR=Math.round((issueCounts.outlier/total)*100);
+  const qual=Math.round(comp*0.5+ded*0.3+(100-outR)*0.2);
+  document.getElementById('r-comp').textContent=comp+'%';
+  document.getElementById('r-comp').className='mc-v ok';
+  document.getElementById('r-ded').textContent=ded+'%';
+  document.getElementById('r-ded').className='mc-v ok';
+  document.getElementById('r-out').textContent=outR+'%';
+  document.getElementById('r-out').className='mc-v warn';
+  document.getElementById('r-qual').textContent=qual+'%';
+  document.getElementById('r-qual').className='mc-v ok';
+  const cols=[
+    {name:'order_id',score:99},{name:'date',score:100},{name:'customer',score:100},
+    {name:'region',score:Math.round(100-issueCounts.type/total*100)},
+    {name:'amount',score:Math.round(100-issueCounts.missing/total*100-issueCounts.outlier/total*50)},
+    {name:'status',score:98}
+  ];
+  document.getElementById('colBars').innerHTML=cols.map(c=>{
+    const color=c.score>=90?'#1D9E75':c.score>=75?'#BA7517':'#A32D2D';
+    return `<div class="bar-row"><div class="bar-label">${c.name}</div><div class="bar-track"><div class="bar-fill" style="width:${c.score}%;background:${color}"></div></div><div class="bar-val">${c.score}%</div></div>`;
+  }).join('');
+  const regionSales={};
+  rawRows.filter(r=>r.issue!=='dup').forEach(r=>{
+    const reg=r.region.trim().replace(/\b\w/g,c=>c.toUpperCase());
+    const key=REGIONS.includes(reg)?reg:'North';
+    const amt=r.amount===''?5200:typeof r.amount==='number'&&r.amount>20000?9800:r.amount;
+    regionSales[key]=(regionSales[key]||0)+Number(amt);
+  });
+  const labels=REGIONS, data=REGIONS.map(r=>Math.round((regionSales[r]||0)/1000));
+  if(regionChart)regionChart.destroy();
+  regionChart=new Chart(document.getElementById('regionChart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Sales (₹K)',data,backgroundColor:['#378ADD','#1D9E75','#BA7517','#D85A30'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'₹'+v+'K',font:{size:10}}},x:{ticks:{font:{size:11}}}}}
+  });
+}
+</script>
